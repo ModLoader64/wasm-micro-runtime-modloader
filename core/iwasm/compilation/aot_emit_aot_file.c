@@ -4288,6 +4288,42 @@ aot_resolve_object_relocation_groups(AOTObjectData *obj_data)
     }
     LLVMDisposeSectionIterator(sec_itr);
 
+    /* Absolute internal calls use a text-section relocation plus the body's
+       offset so the loader can resolve them after mapping the code. */
+    if (!strncmp(obj_data->comp_ctx->target_arch, "x86_64", 6)
+        && obj_data->target_info.bin_type == AOT_COFF64_BIN_TYPE) {
+        uint32 i, j;
+        relocation_group = obj_data->relocation_groups;
+        for (i = 0; i < obj_data->relocation_group_count;
+             i++, relocation_group++) {
+            if (strcmp(relocation_group->section_name, ".text")
+                && strcmp(relocation_group->section_name, ".ltext"))
+                continue;
+            for (j = 0; j < relocation_group->relocation_count; j++) {
+                AOTRelocation *relocation = relocation_group->relocations + j;
+                const char *symbol = relocation->symbol_name;
+                uint32 func_idx;
+                if (relocation->relocation_type != 1 /* ADDR64 */
+                    || !str_starts_with(symbol, AOT_FUNC_INTERNAL_PREFIX))
+                    continue;
+                func_idx =
+                    (uint32)atoi(symbol + strlen(AOT_FUNC_INTERNAL_PREFIX));
+                if (func_idx >= obj_data->func_count) {
+                    aot_set_last_error("invalid aot_func_internal relocation.");
+                    return false;
+                }
+                relocation->relocation_addend +=
+                    (int64)obj_data->funcs[func_idx]
+                        .text_offset_of_aot_func_internal;
+                if (relocation->is_symbol_name_allocated) {
+                    wasm_runtime_free(relocation->symbol_name);
+                    relocation->is_symbol_name_allocated = false;
+                }
+                relocation->symbol_name = ".text";
+            }
+        }
+    }
+
     return true;
 }
 

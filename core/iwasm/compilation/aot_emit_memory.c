@@ -683,7 +683,9 @@ aot_check_memory_overflow(AOTCompContext *comp_ctx, AOTFuncContext *func_ctx,
                 *alignp = align;
             }
         }
-        if (mem_offset + bytes <= mem_data_size) {
+        if (value <= UINT64_MAX - (uint64)offset
+            && mem_offset <= mem_data_size
+            && bytes <= mem_data_size - mem_offset) {
             /* inside memory space */
             if (comp_ctx->pointer_size == sizeof(uint64))
                 offset1 = I64_CONST(mem_offset);
@@ -1536,7 +1538,8 @@ check_bulk_memory_overflow(AOTCompContext *comp_ctx, AOTFuncContext *func_ctx,
         uint32 init_page_count =
             comp_ctx->comp_data->memories[0].init_page_count;
         uint64 mem_data_size = (uint64)num_bytes_per_page * init_page_count;
-        if (mem_data_size > 0 && mem_offset + mem_len <= mem_data_size) {
+        if (mem_data_size > 0 && mem_offset <= mem_data_size
+            && mem_len <= mem_data_size - mem_offset) {
             /* inside memory space */
             /* maddr = mem_base_addr + moffset */
             /* Perform zero extension in advance to avoid LLVMBuildInBoundsGEP2

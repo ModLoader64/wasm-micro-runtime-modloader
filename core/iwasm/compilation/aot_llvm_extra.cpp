@@ -165,8 +165,13 @@ aot_check_simd_compatibility(LLVMTargetMachineRef target_machine)
        the host does support it. */
     const llvm::TargetMachine *targetMachine =
         reinterpret_cast<llvm::TargetMachine *>(target_machine);
+#if LLVM_VERSION_MAJOR >= 23
+    const llvm::MCSubtargetInfo *subTargetInfo =
+        &targetMachine->getMCSubtargetInfo();
+#else
     const llvm::MCSubtargetInfo *subTargetInfo =
         targetMachine->getMCSubtargetInfo();
+#endif
     if (subTargetInfo == nullptr) {
         return false;
     }

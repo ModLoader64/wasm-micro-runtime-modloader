@@ -389,7 +389,9 @@ set_version_info (wamrc)
 if (LLVM_LINK_LLVM_DYLIB)
   set(WAMRC_LINK_LLVM_LIBS LLVM)
 else()
-  set(WAMRC_LINK_LLVM_LIBS ${LLVM_AVAILABLE_LIBS})
+  # Link the compiler and enabled backends without unrelated LLVM tools
+  llvm_map_components_to_libnames(WAMRC_LINK_LLVM_LIBS
+    ${LLVM_TARGETS_TO_BUILD} core orcjit passes)
 endif()
 
 if (NOT MSVC)

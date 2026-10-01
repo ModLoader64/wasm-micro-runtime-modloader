@@ -350,7 +350,7 @@ typedef enum {
 } log_level_t;
 
 typedef struct SharedHeapInitArgs {
-    uint32_t size;
+    uint64_t size;
     void *pre_allocated_addr;
 } SharedHeapInitArgs;
 

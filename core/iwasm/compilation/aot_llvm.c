@@ -2129,9 +2129,9 @@ aot_set_llvm_basic_types(AOTLLVMTypes *basic_types, LLVMContextRef context,
 static bool
 aot_create_llvm_consts(AOTLLVMConsts *consts, AOTCompContext *comp_ctx)
 {
-#define CREATE_I1_CONST(name, value)                                       \
-    if (!(consts->i1_##name =                                              \
-              LLVMConstInt(comp_ctx->basic_types.int1_type, value, true))) \
+#define CREATE_I1_CONST(name, value)                                        \
+    if (!(consts->i1_##name = LLVMConstInt(comp_ctx->basic_types.int1_type, \
+                                           (value) & 1, false)))            \
         return false;
 
     CREATE_I1_CONST(zero, 0)
@@ -2150,8 +2150,8 @@ aot_create_llvm_consts(AOTLLVMConsts *consts, AOTCompContext *comp_ctx)
     if (!(consts->f64_zero = F64_CONST(0)))
         return false;
 
-#define CREATE_I32_CONST(name, value)                                \
-    if (!(consts->i32_##name = LLVMConstInt(I32_TYPE, value, true))) \
+#define CREATE_I32_CONST(name, value)             \
+    if (!(consts->i32_##name = I32_CONST(value))) \
         return false;
 
     CREATE_I32_CONST(min, (uint32)INT32_MIN)
@@ -2176,8 +2176,8 @@ aot_create_llvm_consts(AOTLLVMConsts *consts, AOTCompContext *comp_ctx)
     CREATE_I32_CONST(32, 32)
 #undef CREATE_I32_CONST
 
-#define CREATE_I64_CONST(name, value)                                \
-    if (!(consts->i64_##name = LLVMConstInt(I64_TYPE, value, true))) \
+#define CREATE_I64_CONST(name, value)             \
+    if (!(consts->i64_##name = I64_CONST(value))) \
         return false;
 
     CREATE_I64_CONST(min, (uint64)INT64_MIN)
