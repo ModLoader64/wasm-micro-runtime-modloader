@@ -107,7 +107,7 @@ typedef struct WASMSharedHeap {
     uint64 start_off_mem32;
     /* The number of wasm apps it attached to, for a shared heap chain, only the
      * list head need to maintain the valid attached_count */
-    uint8 attached_count;
+    uint64 attached_count;
 } WASMSharedHeap;
 
 struct WASMMemoryInstance {

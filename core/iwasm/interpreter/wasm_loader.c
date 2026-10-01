@@ -51,6 +51,26 @@ has_module_memory64(WASMModule *module)
     return false;
 }
 
+/* Linker addresses use i32 for memory32 and i64 for memory64. */
+static bool
+get_linker_global_address(const WASMGlobal *global, bool is_mutable,
+                          uint64 *out_value)
+{
+    if (global->type.is_mutable != is_mutable)
+        return false;
+    if (global->type.val_type == VALUE_TYPE_I32
+        && global->init_expr.init_expr_type == INIT_EXPR_TYPE_I32_CONST) {
+        *out_value = (uint64)(uint32)global->init_expr.u.unary.v.i32;
+        return true;
+    }
+    if (global->type.val_type == VALUE_TYPE_I64
+        && global->init_expr.init_expr_type == INIT_EXPR_TYPE_I64_CONST) {
+        *out_value = (uint64)global->init_expr.u.unary.v.i64;
+        return true;
+    }
+    return false;
+}
+
 static bool
 is_table_64bit(WASMModule *module, uint32 table_idx)
 {
@@ -6490,13 +6510,8 @@ load_from_sections(WASMModule *module, WASMSection *sections,
                 /* only process linker-generated symbols */
                 global_index = export->index - module->import_global_count;
                 global = module->globals + global_index;
-                if (global->type.val_type == VALUE_TYPE_I32
-                    && !global->type.is_mutable
-                    && global->init_expr.init_expr_type
-                           == INIT_EXPR_TYPE_I32_CONST) {
+                if (get_linker_global_address(global, false, &aux_heap_base)) {
                     aux_heap_base_global = global;
-                    aux_heap_base =
-                        (uint64)(uint32)global->init_expr.u.unary.v.i32;
                     aux_heap_base_global_index = export->index;
                     LOG_VERBOSE("Found aux __heap_base global, value: %" PRIu64,
                                 aux_heap_base);
@@ -6512,13 +6527,8 @@ load_from_sections(WASMModule *module, WASMSection *sections,
                 /* only process linker-generated symbols */
                 global_index = export->index - module->import_global_count;
                 global = module->globals + global_index;
-                if (global->type.val_type == VALUE_TYPE_I32
-                    && !global->type.is_mutable
-                    && global->init_expr.init_expr_type
-                           == INIT_EXPR_TYPE_I32_CONST) {
+                if (get_linker_global_address(global, false, &aux_data_end)) {
                     aux_data_end_global = global;
-                    aux_data_end =
-                        (uint64)(uint32)global->init_expr.u.unary.v.i32;
                     aux_data_end_global_index = export->index;
                     LOG_VERBOSE("Found aux __data_end global, value: %" PRIu64,
                                 aux_data_end);
@@ -6553,17 +6563,13 @@ load_from_sections(WASMModule *module, WASMSection *sections,
                 /* Resolve aux stack top global */
                 for (global_index = 0; global_index < module->global_count;
                      global_index++) {
+                    uint64 stack_top_value;
                     global = module->globals + global_index;
-                    if (global->type.is_mutable /* heap_base and data_end is
-                                              not mutable */
-                        && global->type.val_type == VALUE_TYPE_I32
-                        && global->init_expr.init_expr_type
-                               == INIT_EXPR_TYPE_I32_CONST
-                        && (uint64)(uint32)global->init_expr.u.unary.v.i32
-                               <= aux_heap_base) {
+                    if (get_linker_global_address(global, true,
+                                                  &stack_top_value)
+                        && stack_top_value <= aux_heap_base) {
                         aux_stack_top_global = global;
-                        aux_stack_top =
-                            (uint64)(uint32)global->init_expr.u.unary.v.i32;
+                        aux_stack_top = stack_top_value;
                         module->aux_stack_top_global_index =
                             module->import_global_count + global_index;
                         module->aux_stack_bottom = aux_stack_top;

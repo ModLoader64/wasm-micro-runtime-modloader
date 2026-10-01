@@ -3820,11 +3820,14 @@ wasm_module_malloc_internal(WASMModuleInstance *module_inst,
     uint8 *addr = NULL;
     uint64 offset = 0;
 
-    /* TODO: Memory64 size check based on memory idx type */
-    bh_assert(size <= UINT32_MAX);
-
     if (!memory) {
         wasm_set_exception(module_inst, "uninitialized memory");
+        return 0;
+    }
+
+    if (size > GET_MAX_LINEAR_MEMORY_SIZE(memory->is_memory64)
+        || (memory->heap_handle && size > UINT32_MAX)) {
+        wasm_set_exception(module_inst, "out of memory");
         return 0;
     }
 
@@ -3869,16 +3872,12 @@ wasm_module_realloc_internal(WASMModuleInstance *module_inst,
     WASMMemoryInstance *memory = wasm_get_default_memory(module_inst);
     uint8 *addr = NULL;
 
-    /* TODO: Memory64 ptr and size check based on memory idx type */
-    bh_assert(ptr <= UINT32_MAX);
-    bh_assert(size <= UINT32_MAX);
-
     if (!memory) {
         wasm_set_exception(module_inst, "uninitialized memory");
         return 0;
     }
 
-    if (memory->heap_handle) {
+    if (memory->heap_handle && ptr <= UINT32_MAX && size <= UINT32_MAX) {
         addr = mem_allocator_realloc(
             memory->heap_handle,
             (uint32)ptr ? memory->memory_data + (uint32)ptr : NULL,
@@ -3910,21 +3909,23 @@ wasm_module_free_internal(WASMModuleInstance *module_inst,
 {
     WASMMemoryInstance *memory = wasm_get_default_memory(module_inst);
 
-    /* TODO: Memory64 ptr and size check based on memory idx type */
-    bh_assert(ptr <= UINT32_MAX);
-
     if (!memory) {
         return;
     }
 
     if (ptr) {
-        uint8 *addr = memory->memory_data + (uint32)ptr;
+        uint8 *addr;
         uint8 *memory_data_end;
 
         /* memory->memory_data_end may be changed in memory grow */
         SHARED_MEMORY_LOCK(memory);
         memory_data_end = memory->memory_data_end;
         SHARED_MEMORY_UNLOCK(memory);
+
+        if (ptr >= (uint64)(memory_data_end - memory->memory_data)) {
+            return;
+        }
+        addr = memory->memory_data + ptr;
 
         if (memory->heap_handle && memory->heap_data <= addr
             && addr < memory->heap_data_end) {
@@ -3967,15 +3968,12 @@ wasm_module_dup_data(WASMModuleInstance *module_inst, const char *src,
     char *buffer;
     uint64 buffer_offset;
 
-    /* TODO: Memory64 size check based on memory idx type */
-    bh_assert(size <= UINT32_MAX);
-
     buffer_offset = wasm_module_malloc(module_inst, size, (void **)&buffer);
 
     if (buffer_offset != 0) {
         buffer = wasm_runtime_addr_app_to_native(
             (WASMModuleInstanceCommon *)module_inst, buffer_offset);
-        bh_memcpy_s(buffer, (uint32)size, src, (uint32)size);
+        memcpy(buffer, src, (size_t)size);
     }
     return buffer_offset;
 }

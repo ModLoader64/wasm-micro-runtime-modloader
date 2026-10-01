@@ -150,27 +150,22 @@ static uint32
 notify_wait_list(bh_list *wait_list, uint32 count)
 {
     AtomicWaitNode *node, *next;
-    uint32 i, notify_count = count;
+    uint32 notified = 0;
 
-    if (count > wait_list->len)
-        notify_count = wait_list->len;
-
-    node = bh_list_first_elem(wait_list);
-    if (!node)
-        return 0;
-
-    for (i = 0; i < notify_count; i++) {
-        bh_assert(node);
+    for (node = bh_list_first_elem(wait_list); node && notified < count;
+         node = next) {
         next = bh_list_elem_next(node);
+        /* A notified waiter stays listed until it runs. */
+        if (node->status == S_NOTIFIED)
+            continue;
 
         node->status = S_NOTIFIED;
         /* wakeup */
         os_cond_signal(&node->wait_cond);
-
-        node = next;
+        notified++;
     }
 
-    return notify_count;
+    return notified;
 }
 
 static AtomicWaitInfo *
@@ -253,10 +248,6 @@ is_native_addr_in_shared_heap(WASMModuleInstanceCommon *module_inst,
 {
     WASMSharedHeap *shared_heap = NULL;
 
-    if (bytes > APP_HEAP_SIZE_MAX) {
-        return false;
-    }
-
 #if WASM_ENABLE_INTERP != 0
     if (module_inst->module_type == Wasm_Module_Bytecode) {
         shared_heap = ((WASMModuleInstance *)module_inst)->e->shared_heap;
@@ -270,8 +261,15 @@ is_native_addr_in_shared_heap(WASMModuleInstanceCommon *module_inst,
     }
 #endif
 
-    return shared_heap && addr >= shared_heap->base_addr
-           && addr + bytes <= shared_heap->base_addr + shared_heap->size;
+    for (; shared_heap; shared_heap = shared_heap->chain_next) {
+        uintptr_t base = (uintptr_t)shared_heap->base_addr;
+        uintptr_t address = (uintptr_t)addr;
+        if (address >= base && address - base < shared_heap->size
+            && bytes <= shared_heap->size - (address - base)) {
+            return true;
+        }
+    }
+    return false;
 }
 #endif
 
