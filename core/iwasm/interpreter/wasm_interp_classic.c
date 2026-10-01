@@ -99,10 +99,12 @@ typedef float64 CellType_F64;
 #define CHECK_MEMORY_OVERFLOW(bytes)                                        \
     do {                                                                    \
         uint64 offset1 = (uint64)offset + (uint64)addr;                     \
-        CHECK_SHARED_HEAP_OVERFLOW(offset1, bytes, maddr)                   \
         /* If memory64 is enabled, offset1, offset1 + bytes can overflow */ \
+        if (!disable_bounds_checks && offset1 < offset)                    \
+            goto out_of_bounds;                                             \
+        CHECK_SHARED_HEAP_OVERFLOW(offset1, bytes, maddr)                   \
         if (disable_bounds_checks                                           \
-            || (offset1 >= offset && offset1 + bytes >= offset1             \
+            || (offset1 + bytes >= offset1                                 \
                 && offset1 + bytes <= get_linear_mem_size()))               \
             maddr = memory->memory_data + offset1;                          \
         else                                                                \

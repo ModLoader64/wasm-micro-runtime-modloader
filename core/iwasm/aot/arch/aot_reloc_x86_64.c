@@ -31,11 +31,15 @@
 #pragma function(ceil)
 #pragma function(floorf)
 #pragma function(ceilf)
+extern void __chkstk(void);
 #endif
 
 /* clang-format off */
 static SymbolMap target_sym_map[] = {
     REG_COMMON_SYMBOLS
+#if defined(BH_PLATFORM_WINDOWS)
+    REG_SYM(__chkstk),
+#endif
 };
 /* clang-format on */
 
@@ -62,8 +66,12 @@ get_current_target(char *target_buf, uint32 target_buf_size)
 static uint32
 get_plt_item_size(void)
 {
+#if defined(BH_PLATFORM_WINDOWS)
+    return 14;
+#else
     /* size of mov instruction and jmp instruction */
     return 12;
+#endif
 }
 
 uint32
@@ -82,14 +90,24 @@ init_plt_table(uint8 *plt)
 
     for (i = 0; i < num; i++) {
         p = plt;
+#if defined(BH_PLATFORM_WINDOWS)
+        /* jmp [rip] preserves the __chkstk size in rax. */
+        *p++ = 0xFF;
+        *p++ = 0x25;
+        *(uint32 *)p = 0;
+        p += sizeof(uint32);
+#else
         /* mov symbol_addr, rax */
         *p++ = 0x48;
         *p++ = 0xB8;
+#endif
         *(uint64 *)p = (uint64)(uintptr_t)target_sym_map[i].symbol_addr;
         p += sizeof(uint64);
+#if !defined(BH_PLATFORM_WINDOWS)
         /* jmp rax */
         *p++ = 0xFF;
         *p++ = 0xE0;
+#endif
         plt += get_plt_item_size();
     }
 }
