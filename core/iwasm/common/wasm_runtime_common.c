@@ -2310,12 +2310,25 @@ wasm_runtime_get_export_global_inst(WASMModuleInstanceCommon *const module_inst,
             const AOTExport *aot_export = &aot_module->exports[i];
             if ((aot_export->kind == WASM_IMPORT_EXPORT_KIND_GLOBAL)
                 && !strcmp(aot_export->name, name)) {
-                const AOTGlobal *global =
-                    &aot_module->globals[aot_export->index];
-                global_inst->kind = val_type_to_val_kind(global->type.val_type);
-                global_inst->is_mutable = global->type.is_mutable;
+                uint32 data_offset;
+                const WASMGlobalType *type;
+                if (aot_export->index < aot_module->import_global_count) {
+                    const AOTImportGlobal *global =
+                        &aot_module->import_globals[aot_export->index];
+                    type = &global->type;
+                    data_offset = global->data_offset;
+                }
+                else {
+                    const AOTGlobal *global =
+                        &aot_module->globals[aot_export->index
+                                             - aot_module->import_global_count];
+                    type = &global->type;
+                    data_offset = global->data_offset;
+                }
+                global_inst->kind = val_type_to_val_kind(type->val_type);
+                global_inst->is_mutable = type->is_mutable;
                 global_inst->global_data =
-                    aot_module_inst->global_data + global->data_offset;
+                    aot_module_inst->global_data + data_offset;
                 return true;
             }
         }
