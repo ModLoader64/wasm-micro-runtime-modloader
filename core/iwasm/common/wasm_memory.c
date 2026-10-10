@@ -1842,7 +1842,8 @@ wasm_enlarge_memory_internal(WASMModuleInstanceCommon *module,
     memory->num_bytes_per_page = num_bytes_per_page;
     memory->cur_page_count = total_page_count;
     memory->max_page_count = max_page_count;
-    SET_LINEAR_MEMORY_SIZE(memory, total_size_new);
+    // already hold a memory lock
+    BH_ATOMIC_64_STORE(memory->memory_data_size, total_size_new);
     memory->memory_data_end = memory->memory_data + total_size_new;
 
     wasm_runtime_set_mem_bound_check_bytes(memory, total_size_new);

@@ -66,12 +66,12 @@ typedef uint16 bh_atomic_16_t;
 #define BH_ATOMIC_16_IS_ATOMIC WASM_UINT16_IS_ATOMIC
 #endif /* WASM_UINT16_IS_ATOMIC */
 
-#if defined(__GNUC_PREREQ)
-#if __GNUC_PREREQ(4, 7)
+#if defined(__clang__)
+#if __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 0)
 #define CLANG_GCC_HAS_ATOMIC_BUILTIN
 #endif
-#elif defined(__clang__)
-#if __clang_major__ > 3 || (__clang_major__ == 3 && __clang_minor__ >= 0)
+#elif defined(__GNUC_PREREQ)
+#if __GNUC_PREREQ(4, 7)
 #define CLANG_GCC_HAS_ATOMIC_BUILTIN
 #endif
 #endif
