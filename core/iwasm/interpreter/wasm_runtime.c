@@ -4108,7 +4108,8 @@ wasm_set_aux_stack(WASMExecEnv *exec_env, uint64 start_offset, uint32 size)
     uint64 stack_bottom = module_inst->module->aux_stack_bottom;
     bool is_stack_before_data = stack_bottom < data_end ? true : false;
     if ((is_stack_before_data && (size > start_offset))
-        || ((!is_stack_before_data) && (start_offset - data_end < size)))
+        || ((!is_stack_before_data)
+            && (start_offset < data_end || start_offset - data_end < size)))
         return false;
 #endif
 
@@ -4118,7 +4119,17 @@ wasm_set_aux_stack(WASMExecEnv *exec_env, uint64 start_offset, uint32 size)
         uint8 *global_addr =
             module_inst->global_data
             + module_inst->e->globals[stack_top_idx].data_offset;
-        *(int32 *)global_addr = (uint32)start_offset;
+#if WASM_ENABLE_MEMORY64 != 0
+        if (module_inst->e->globals[stack_top_idx].type == VALUE_TYPE_I64) {
+            PUT_I64_TO_ADDR((uint32 *)global_addr, start_offset);
+        }
+        else
+#endif
+        {
+            if (start_offset > UINT32_MAX)
+                return false;
+            *(int32 *)global_addr = (uint32)start_offset;
+        }
         /* The aux stack boundary is a constant value,
             set the value to exec_env */
         exec_env->aux_stack_boundary = (uintptr_t)start_offset - size;

@@ -9540,6 +9540,12 @@ fail:
         LOG_OP("%lld\t", value);                    \
     } while (0)
 
+#if WASM_ENABLE_MEMORY64 != 0
+#define emit_mem_offset(ctx, value) emit_uint64(ctx, value)
+#else
+#define emit_mem_offset(ctx, value) emit_uint32(ctx, value)
+#endif
+
 #define emit_float32(ctx, value)                   \
     do {                                           \
         wasm_loader_emit_const(ctx, &value, true); \
@@ -14343,18 +14349,8 @@ re_scan:
 #endif
 
 #if WASM_ENABLE_FAST_INTERP == 0
-                if (global_type == VALUE_TYPE_I64
-                    || global_type == VALUE_TYPE_F64) {
-#if WASM_ENABLE_DEBUG_INTERP != 0
-                    if (!record_fast_op(module, p_org, *p_org, error_buf,
-                                        error_buf_size)) {
-                        goto fail;
-                    }
-#endif
-                    *p_org = WASM_OP_SET_GLOBAL_64;
-                }
-                else if (module->aux_stack_size > 0
-                         && global_idx == module->aux_stack_top_global_index) {
+                if (module->aux_stack_size > 0
+                    && global_idx == module->aux_stack_top_global_index) {
 #if WASM_ENABLE_DEBUG_INTERP != 0
                     if (!record_fast_op(module, p_org, *p_org, error_buf,
                                         error_buf_size)) {
@@ -14366,16 +14362,26 @@ re_scan:
                     func->has_op_set_global_aux_stack = true;
 #endif
                 }
-#else /* else of WASM_ENABLE_FAST_INTERP */
-                if (global_type == VALUE_TYPE_I64
-                    || global_type == VALUE_TYPE_F64) {
-                    skip_label();
-                    emit_label(WASM_OP_SET_GLOBAL_64);
+                else if (global_type == VALUE_TYPE_I64
+                         || global_type == VALUE_TYPE_F64) {
+#if WASM_ENABLE_DEBUG_INTERP != 0
+                    if (!record_fast_op(module, p_org, *p_org, error_buf,
+                                        error_buf_size)) {
+                        goto fail;
+                    }
+#endif
+                    *p_org = WASM_OP_SET_GLOBAL_64;
                 }
-                else if (module->aux_stack_size > 0
-                         && global_idx == module->aux_stack_top_global_index) {
+#else /* else of WASM_ENABLE_FAST_INTERP */
+                if (module->aux_stack_size > 0
+                    && global_idx == module->aux_stack_top_global_index) {
                     skip_label();
                     emit_label(WASM_OP_SET_GLOBAL_AUX_STACK);
+                }
+                else if (global_type == VALUE_TYPE_I64
+                         || global_type == VALUE_TYPE_F64) {
+                    skip_label();
+                    emit_label(WASM_OP_SET_GLOBAL_64);
                 }
 #if WASM_ENABLE_SIMDE != 0
                 else if (global_type == VALUE_TYPE_V128) {
@@ -14445,7 +14451,7 @@ re_scan:
                     goto fail;
                 }
 #if WASM_ENABLE_FAST_INTERP != 0
-                emit_uint32(loader_ctx, mem_offset);
+                emit_mem_offset(loader_ctx, mem_offset);
 #endif
 #if WASM_ENABLE_JIT != 0 || WASM_ENABLE_WAMR_COMPILER != 0
                 func->has_memory_operations = true;
@@ -16265,7 +16271,7 @@ re_scan:
                                                mem_offset); /* offset */
 
 #if WASM_ENABLE_FAST_INTERP != 0
-                        emit_uint32(loader_ctx, mem_offset);
+                        emit_mem_offset(loader_ctx, mem_offset);
 #endif
 
                         POP_AND_PUSH(mem_offset_type, VALUE_TYPE_V128);
@@ -16289,7 +16295,7 @@ re_scan:
                                                mem_offset); /* offset */
 
 #if WASM_ENABLE_FAST_INTERP != 0
-                        emit_uint32(loader_ctx, mem_offset);
+                        emit_mem_offset(loader_ctx, mem_offset);
 #endif
 
                         POP_V128();
@@ -16542,7 +16548,7 @@ re_scan:
                             goto fail;
                         }
 #if WASM_ENABLE_FAST_INTERP != 0
-                        emit_uint32(loader_ctx, mem_offset);
+                        emit_mem_offset(loader_ctx, mem_offset);
 #endif
                         POP_V128();
                         POP_MEM_OFFSET();
@@ -16572,7 +16578,7 @@ re_scan:
                         pb_read_leb_mem_offset(p, p_end,
                                                mem_offset); /* offset */
 #if WASM_ENABLE_FAST_INTERP != 0
-                        emit_uint32(loader_ctx, mem_offset);
+                        emit_mem_offset(loader_ctx, mem_offset);
 #endif
                         POP_AND_PUSH(mem_offset_type, VALUE_TYPE_V128);
 #if WASM_ENABLE_JIT != 0 || WASM_ENABLE_WAMR_COMPILER != 0
@@ -16945,7 +16951,7 @@ re_scan:
                         goto fail;
                     }
 #if WASM_ENABLE_FAST_INTERP != 0
-                    emit_uint32(loader_ctx, mem_offset);
+                    emit_mem_offset(loader_ctx, mem_offset);
 #endif
                 }
 #if WASM_ENABLE_JIT != 0 || WASM_ENABLE_WAMR_COMPILER != 0

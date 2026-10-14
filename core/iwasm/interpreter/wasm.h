@@ -1232,7 +1232,7 @@ align_uint64(uint64 v, uint64 b)
  * @return true if out of range, false otherwise
  */
 inline static bool
-offset_len_out_of_bounds(uint32 offset, uint32 len, uint32 max_size)
+offset_len_out_of_bounds(uint64 offset, uint64 len, uint64 max_size)
 {
     if (offset + len < offset /* integer overflow */
         || offset + len > max_size)

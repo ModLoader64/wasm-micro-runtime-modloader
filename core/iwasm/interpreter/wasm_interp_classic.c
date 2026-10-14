@@ -4365,8 +4365,8 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
                 global = globals + global_idx;
                 global_addr = get_global_addr(global_data, global);
 #if WASM_ENABLE_MEMORY64 != 0
-                if (is_memory64) {
-                    aux_stack_top = *(uint64 *)(frame_sp - 2);
+                if (global->type == VALUE_TYPE_I64) {
+                    aux_stack_top = GET_I64_FROM_ADDR(frame_sp - 2);
                 }
                 else
 #endif
@@ -4383,8 +4383,8 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
                     goto got_exception;
                 }
 #if WASM_ENABLE_MEMORY64 != 0
-                if (is_memory64) {
-                    *(uint64 *)global_addr = aux_stack_top;
+                if (global->type == VALUE_TYPE_I64) {
+                    PUT_I64_TO_ADDR((uint32 *)global_addr, aux_stack_top);
                     frame_sp -= 2;
                 }
                 else
@@ -4397,7 +4397,7 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
                 if (module->module->aux_stack_top_global_index != (uint32)-1) {
                     uint32 aux_stack_used =
                         (uint32)(module->module->aux_stack_bottom
-                                 - *(uint32 *)global_addr);
+                                 - aux_stack_top);
                     if (aux_stack_used > module->e->max_aux_stack_used)
                         module->e->max_aux_stack_used = aux_stack_used;
                 }
