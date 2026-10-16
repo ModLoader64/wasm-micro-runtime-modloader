@@ -7372,6 +7372,9 @@ wasm_loader_unload(WASMModule *module)
 #if WASM_ENABLE_FAST_INTERP != 0
                 if (module->functions[i]->code_compiled)
                     wasm_runtime_free(module->functions[i]->code_compiled);
+#if WASM_ENABLE_DUMP_CALL_STACK != 0
+                wasm_runtime_free(module->functions[i]->code_mapping);
+#endif
                 if (module->functions[i]->consts)
                     wasm_runtime_free(module->functions[i]->consts);
 #endif
@@ -11855,6 +11858,9 @@ wasm_loader_prepare_bytecode(WASMModule *module, WASMFunction *func,
     bool need_ref_type_map;
 #endif
 #if WASM_ENABLE_FAST_INTERP != 0
+#if WASM_ENABLE_DUMP_CALL_STACK != 0
+    uint8 *compiled_start = NULL, *original_opcode = NULL;
+#endif
     int16 operand_offset = 0;
     uint8 last_op = 0;
     bool disable_emit, preserve_local = false, if_condition_available = true;
@@ -11928,6 +11934,13 @@ re_scan:
         p = func->code;
         func->code_compiled = loader_ctx->p_code_compiled;
         func->code_compiled_size = loader_ctx->code_compiled_size;
+#if WASM_ENABLE_DUMP_CALL_STACK != 0
+        if (!(func->code_mapping = loader_malloc(
+                  (uint64)func->code_mapping_count * sizeof(*func->code_mapping),
+                  error_buf, error_buf_size)))
+            goto fail;
+        func->code_mapping_count = 0;
+#endif
 
         if (loader_ctx->i64_const_num > 0) {
             int64 *i64_consts_old = loader_ctx->i64_consts;
@@ -12032,6 +12045,10 @@ re_scan:
         opcode = *p++;
 #if WASM_ENABLE_FAST_INTERP != 0
         p_org = p;
+#if WASM_ENABLE_DUMP_CALL_STACK != 0
+        compiled_start = loader_ctx->p_code_compiled;
+        original_opcode = p - 1;
+#endif
         disable_emit = false;
         emit_label(opcode);
 #endif
@@ -17091,6 +17108,23 @@ re_scan:
         }
 
 #if WASM_ENABLE_FAST_INTERP != 0
+#if WASM_ENABLE_DUMP_CALL_STACK != 0
+        if (!compiled_start) {
+            func->code_mapping_count++;
+        }
+        else if (loader_ctx->p_code_compiled > compiled_start) {
+            uint32 offset = (uint32)(compiled_start - func->code_compiled);
+            uint32 count = func->code_mapping_count;
+
+            while (count > 0
+                   && func->code_mapping[count - 1].compiled_offset >= offset)
+                count--;
+            func->code_mapping[count].compiled_offset = offset;
+            func->code_mapping[count].original_offset =
+                (uint32)(original_opcode - func->code);
+            func->code_mapping_count = count + 1;
+        }
+#endif
         last_op = opcode;
 #endif
     }

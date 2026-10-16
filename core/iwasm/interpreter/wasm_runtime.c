@@ -3667,7 +3667,9 @@ call_wasm_with_hw_bound_check(WASMModuleInstance *module_inst,
     if (!ret) {
 #if WASM_ENABLE_DUMP_CALL_STACK != 0
         if (wasm_interp_create_call_stack(exec_env)) {
+#if WASM_ENABLE_DUMP_CALL_STACK_ON_EXCEPTION != 0
             wasm_interp_dump_call_stack(exec_env, true, NULL, 0);
+#endif
         }
 #endif
         /* Restore operand frames */
@@ -4400,16 +4402,39 @@ wasm_interp_create_call_stack(struct WASMExecEnv *exec_env)
         frame.func_index = (uint32)(func_inst - module_inst->e->functions);
 
         func_code_base = wasm_get_func_code(func_inst);
-        if (!cur_frame->ip || !func_code_base) {
+        if (!func_code_base) {
             frame.func_offset = 0;
         }
+#if WASM_ENABLE_FAST_INTERP != 0
         else {
-#if WASM_ENABLE_FAST_INTERP == 0
-            frame.func_offset = (uint32)(cur_frame->ip - module->load_addr);
-#else
-            frame.func_offset = (uint32)(cur_frame->ip - func_code_base);
-#endif
+            WASMFunction *func = func_inst->u.func;
+            uint32 original_offset = 0;
+
+            if (cur_frame->ip && cur_frame->ip > func_code_base
+                && func->code_mapping_count) {
+                uint32 offset = (uint32)(cur_frame->ip - func_code_base - 1);
+                uint32 low = 0, high = func->code_mapping_count;
+
+                /* The saved IP follows the opcode or its operands. */
+                while (low + 1 < high) {
+                    uint32 middle = low + (high - low) / 2;
+                    if (func->code_mapping[middle].compiled_offset <= offset)
+                        low = middle;
+                    else
+                        high = middle;
+                }
+                original_offset = func->code_mapping[low].original_offset;
+            }
+            frame.func_offset =
+                (uint32)(func->code - module->load_addr) + original_offset;
         }
+#else
+        else {
+            frame.func_offset = (uint32)((cur_frame->ip ? cur_frame->ip
+                                                      : func_code_base)
+                                         - module->load_addr);
+        }
+#endif
 
         func_name = get_func_name_from_index(module_inst, frame.func_index);
         frame.func_name_wp = func_name;

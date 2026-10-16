@@ -2734,7 +2734,9 @@ aot_call_function(WASMExecEnv *exec_env, AOTFunctionInstance *function,
 #endif
 #if WASM_ENABLE_DUMP_CALL_STACK != 0
             if (aot_create_call_stack(exec_env)) {
+#if WASM_ENABLE_DUMP_CALL_STACK_ON_EXCEPTION != 0
                 aot_dump_call_stack(exec_env, true, NULL, 0);
+#endif
             }
 #endif
         }
@@ -2807,7 +2809,9 @@ aot_call_function(WASMExecEnv *exec_env, AOTFunctionInstance *function,
 #endif
 #if WASM_ENABLE_DUMP_CALL_STACK != 0
             if (aot_create_call_stack(exec_env)) {
+#if WASM_ENABLE_DUMP_CALL_STACK_ON_EXCEPTION != 0
                 aot_dump_call_stack(exec_env, true, NULL, 0);
+#endif
             }
 #endif
         }

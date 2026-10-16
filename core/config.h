@@ -357,6 +357,10 @@ unless used elsewhere */
 #define WASM_ENABLE_DUMP_CALL_STACK 0
 #endif
 
+#ifndef WASM_ENABLE_DUMP_CALL_STACK_ON_EXCEPTION
+#define WASM_ENABLE_DUMP_CALL_STACK_ON_EXCEPTION 1
+#endif
+
 /* AOT stack frame */
 #ifndef WASM_ENABLE_AOT_STACK_FRAME
 #define WASM_ENABLE_AOT_STACK_FRAME 0

@@ -7855,10 +7855,12 @@ wasm_interp_call_func_bytecode(WASMModuleInstance *module,
             }
 #endif
 
-#if WASM_ENABLE_GC != 0
+#if WASM_ENABLE_GC != 0 || WASM_ENABLE_DUMP_CALL_STACK != 0
             /* frame->ip is used during GC root set enumeration, so we must
              * initialized this field here */
             frame->ip = frame_ip;
+#endif
+#if WASM_ENABLE_GC != 0
             frame_ref = frame->frame_ref =
                 (uint8 *)(frame->lp + (uint32)cell_num_of_local_stack);
             init_frame_refs(frame_ref, (uint32)cell_num_of_local_stack,
@@ -8076,7 +8078,9 @@ wasm_interp_call_wasm(WASMModuleInstance *module_inst, WASMExecEnv *exec_env,
     else {
 #if WASM_ENABLE_DUMP_CALL_STACK != 0
         if (wasm_interp_create_call_stack(exec_env)) {
+#if WASM_ENABLE_DUMP_CALL_STACK_ON_EXCEPTION != 0
             wasm_interp_dump_call_stack(exec_env, true, NULL, 0);
+#endif
         }
 #endif
     }

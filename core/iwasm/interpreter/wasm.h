@@ -711,6 +711,14 @@ struct WASMFunction {
 #if WASM_ENABLE_FAST_INTERP != 0
     uint32 code_compiled_size;
     uint8 *code_compiled;
+#if WASM_ENABLE_DUMP_CALL_STACK != 0
+    /* Original opcode locations for the rewritten bytecode. */
+    struct WASMCodeMapping {
+        uint32 compiled_offset;
+        uint32 original_offset;
+    } *code_mapping;
+    uint32 code_mapping_count;
+#endif
     uint8 *consts;
     uint32 const_cell_num;
 #endif

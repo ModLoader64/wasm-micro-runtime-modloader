@@ -486,6 +486,11 @@ if (WAMR_BUILD_CUSTOM_NAME_SECTION EQUAL 1)
   add_definitions (-DWASM_ENABLE_CUSTOM_NAME_SECTION=1)
   message ("     Custom name section enabled")
 endif ()
+if (DEFINED WAMR_BUILD_DUMP_CALL_STACK_ON_EXCEPTION AND
+    WAMR_BUILD_DUMP_CALL_STACK_ON_EXCEPTION EQUAL 0)
+  add_definitions (-DWASM_ENABLE_DUMP_CALL_STACK_ON_EXCEPTION=0)
+endif ()
+
 if (WAMR_BUILD_DUMP_CALL_STACK EQUAL 1)
   add_definitions (-DWASM_ENABLE_DUMP_CALL_STACK=1)
   message ("     Dump call stack enabled")
